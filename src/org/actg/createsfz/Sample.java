@@ -28,9 +28,6 @@ public class Sample implements Comparable {
             result = velocity - other.velocity;
         }
         if (result == 0) {
-            result = velocity - other.velocity;
-        }
-        if (result == 0) {
             result = id - other.id;
         }
         return result;
