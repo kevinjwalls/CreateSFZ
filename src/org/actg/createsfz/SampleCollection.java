@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,6 +15,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.actg.createsfz.CreateSFZ.Format;
 
 /**
  * A SampleCollection is a sorted collection of filenames, created from a
@@ -28,33 +28,36 @@ import java.util.regex.Pattern;
  */
 public class SampleCollection {
 
-    protected static String REGEX_NOTENAME_GROUP = "([a-z]#?)";
-    protected static String REGEX_FILENAME = "(.*)_([a-zA-Z]+)\\-(.*)\\-(\\d+)\\.wav"; // "baseName_velocityName-NoteName-VariationNumber"
-
-    protected static Pattern pat_filename = Pattern.compile(REGEX_FILENAME);
-
-    protected static List<String> Velocities = Arrays.asList("Soft", "Medium", "Hard");
-
+    protected Format format;
     protected List<String> filesUsed;
-    protected List<String> filesNotUsed;
 
-    // Collection of samples:
     // Map a note Number to a List of samples of increasing velocity/loudness:
     protected Map<Integer, Set> samples;
 
-    public SampleCollection(String dirname) throws IOException {
+    public SampleCollection(Format format, String dirname) throws IOException {
         File dir = new File(dirname);
-        if (dir.exists() && dir.isDirectory() && dir.canRead()) {
-            filesUsed = new LinkedList<>();
-            filesNotUsed = new LinkedList<>();
-            samples = new HashMap<Integer, Set>();
-            addFiles(dir);
-        } else {
+        if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) {
             throw new IOException("bad directory: " + dirname);
+        } else {
+            if (format != null) {
+                this.format = format;
+            } else {
+                this.format = probeFormat(dir);
+            }
+            samples = new HashMap<Integer, Set>();
+            filesUsed = addFiles(dir, format);
+            System.out.println(dirname + ": files used: " + filesUsed.size());
         }
     }
 
-    public void addFiles(File dir) {
+    public Format probeFormat(File dir) {
+        throw new RuntimeException("missing sample name format");
+    }
+
+    public List<String> addFiles(File dir, Format format) {
+        List<String> filesUsed = new LinkedList<>();
+        List<String> filesNotUsed = new LinkedList<>();
+        Pattern pat_filename = Pattern.compile(format.filenameRegex());
         for (File f : dir.listFiles()) {
             Matcher m = pat_filename.matcher(f.getName());
             if (m.find()) {
@@ -66,10 +69,16 @@ public class SampleCollection {
                 String velocityName = m.group(2);
                 int velocity = parseVelocityName(velocityName);
                 String noteName = m.group(3);
-                String variation = m.group(4);
+                String variation = null;
+                if (m.groupCount() > 3) {
+                    variation = m.group(4);
+                }
                 try {
                     int noteNumber = MIDI.noteNameToNumber(noteName);
-                    int variationNumber = Integer.parseInt(variation);
+                    int variationNumber = -1;
+                    if (variation != null) {
+                        variationNumber = Integer.parseInt(variation);
+                    }
                     // System.out.println("FOUND: " + f.getName() + ": note: " + noteNumber);
                     addSample(new Sample(f.getName(), baseName, noteNumber, velocity, variationNumber));
                 } catch (NumberFormatException nfe) {
@@ -79,10 +88,7 @@ public class SampleCollection {
                 filesNotUsed.add(f.getName());
             }
         }
-        System.out.println("Files used: " + filesUsed.size());
-        if (!filesNotUsed.isEmpty()) {
-            System.out.println("Files NOT used: " + filesNotUsed);
-        }
+        return filesUsed;
     }
 
     protected synchronized void addSample(Sample s) {
@@ -101,8 +107,8 @@ public class SampleCollection {
      * @param velocityName
      * @return int velocity value
      */
-    public static int parseVelocityName(String velocityName) {
-        int velocity = Velocities.indexOf(velocityName);
+    public int parseVelocityName(String velocityName) {
+        int velocity = format.velocities().indexOf(velocityName);
         if (velocity == -1) {
             velocity = 1;
         }
