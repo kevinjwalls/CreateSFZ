@@ -31,6 +31,7 @@ public class SampleCollection {
     protected Format format;
     protected List<String> filesUsed;
 
+    protected static final int KEY_RANGE = 10;
     // Map a note Number to a List of samples of increasing velocity/loudness:
     protected Map<Integer, Set> samples;
 
@@ -123,6 +124,8 @@ public class SampleCollection {
         Set<Integer> notes = new TreeSet<>();
         notes.addAll(samples.keySet());
         // Iterate the notes, retrieve a Set of samples for each note.
+        int noteCount = 0;
+        int prevKey = -1;
         for (Integer note : notes) {
             out.println("\n// Note: " + note);
             Set<Sample> set = samples.get(note);
@@ -130,7 +133,15 @@ public class SampleCollection {
             Sample s1 = set.iterator().next();
             out.println("<global>");
             out.println("pitch_keycenter=" + s1.noteNumber);
-            out.println("lokey=" + s1.noteNumber);
+            // Expand key range downwards, to the note after the previous note seen, 
+            // or by KEY_RANGE on first iteration:
+            int lokey = s1.noteNumber;
+            if (noteCount == 0) {
+                lokey = lokey - KEY_RANGE;
+            } else {
+                lokey = prevKey + 1; // ...which can equal s1.noteNumber 
+            }
+            out.println("lokey=" + lokey);
             out.println("hikey=" + s1.noteNumber);
             // The sample Set sorts samples for that note, from soft to hard.
             // Get the velocity range for these samples:
@@ -153,6 +164,8 @@ public class SampleCollection {
                     seq++;
                 }
                 out.println();
+                prevKey = s1.noteNumber;
+                noteCount++;
             }
         }
     }
