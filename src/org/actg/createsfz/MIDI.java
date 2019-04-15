@@ -35,22 +35,18 @@ public class MIDI {
      * @param name
      * @return note number
      */
-    public static int noteNameToNumber(String name) {
-        try {
-            String noteName = null;
-            int octave;
-            if (name.charAt(1) == '#') {
-                noteName = name.substring(0, 2);
-                octave = Integer.parseInt(name.substring(2));
-            } else {
-                noteName = name.substring(0, 1);
-                octave = Integer.parseInt(name.substring(1));
-            }
-            int noteNumber = findStringInArray(noteName, notes);
-            return (octave + 2) * 12 + noteNumber;
-        } catch (NumberFormatException nfe) {
-            throw new RuntimeException(nfe);
+    public static int noteNameToNumber(String name) throws NumberFormatException {
+        String noteName = null;
+        int octave;
+        if (name.charAt(1) == '#') {
+            noteName = name.substring(0, 2);
+            octave = Integer.parseInt(name.substring(2));
+        } else {
+            noteName = name.substring(0, 1);
+            octave = Integer.parseInt(name.substring(1));
         }
+        int noteNumber = findStringInArray(noteName, notes);
+        return (octave + 2) * 12 + noteNumber;
     }
 
     public static int findStringInArray(String s, String[] array) {

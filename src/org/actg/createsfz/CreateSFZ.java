@@ -18,16 +18,12 @@
 package org.actg.createsfz;
 
 import java.io.File;
-import java.io.FileOutputStream;
-
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * CreateSFZ is the Main class.
- *
  */
 public class CreateSFZ {
 
@@ -37,13 +33,9 @@ public class CreateSFZ {
             + "This is free software, and you are welcome to redistribute it\n"
             + "under certain conditions.";
 
-    public static String USAGE = "java CreateSFZ NEWFILE.SFZ DIRECTORY [ FORMAT_NAME ] \n"
+    public static String USAGE = "java CreateSFZ DIRECTORY [ FORMAT_NAME ] \n"
             + "where:\n"
             + "FORMAT_NAME can be 'pianobook'";
-    public static String HEADER = "//\n// SFZ file created by CreateSFZ.\n//";
-    public static String FOOTER = "//\n// End of SFZ file created by CreateSFZ.\n//";
-
-    protected static String REGEX_NOTENAME_GROUP = "([a-z]#?)";
 
     public interface Format {
 
@@ -79,30 +71,31 @@ public class CreateSFZ {
     protected String sampleDirName;
 
     /**
+     * Required argument: directory name
+     *
+     * Optional: sample format name
+     *
+     * Output filename is implied from sample names.
+     *
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException {
-        if (args.length < 2) {
+        if (args.length < 1 || args.length > 2) {
             System.err.println(USAGE);
             System.exit(1);
         }
-        String newSFZFilename = args[0];
-        File outputFile = new File(newSFZFilename);
-        if (outputFile.exists()) {
-            throw new IOException("destination/output file exists: " + outputFile.getCanonicalFile());
-        }
-        String dirname = args[1];
+        String dirname = args[0];
         String formatName = null;
-        if (args.length > 2) {
-            formatName = args[2];
+        if (args.length > 1) {
+            formatName = args[1];
         } else {
             formatName = "format1";
         }
-        System.out.println(COPYTEXT);
-        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, outputFile);
+        // System.out.println(COPYTEXT);
+        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname);
     }
 
-    public CreateSFZ(String formatName, String sampleDirName, File outputFile) throws IOException {
+    public CreateSFZ(String formatName, String sampleDirName) {
         this.sampleDirName = sampleDirName;
         // SForzando at least doesn't add a separator between the dir name we give and any samples...
         if (!sampleDirName.endsWith(File.separator)) {
@@ -118,18 +111,11 @@ public class CreateSFZ {
                 format = new Format1();
         }
         // Create a SampleCollection from the given directory:
-        samples = new SampleCollection(format, sampleDirName);
-        if (samples.samples.size() >= 0) {
-            write(outputFile);
+        try {
+            samples = new SampleCollection(format, this.sampleDirName);
+            samples.writeSFZ();
+        } catch (IOException ioe) {
+            System.err.println(ioe.getMessage());
         }
-    }
-
-    public void write(File outputFile) throws IOException {
-        PrintStream out = new PrintStream(new FileOutputStream(outputFile));
-        out.println(HEADER);
-        out.println("<control>");
-        out.println("default_path=" + sampleDirName);
-        samples.printRegions(out);
-        out.println(FOOTER);
     }
 }
