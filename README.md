@@ -49,3 +49,10 @@ then...
 
 
 
+# SFZ Format References
+
+http://www.sfzformat.com/index.php?title=Main_Page
+
+https://en.wikipedia.org/wiki/SFZ_(file_format)
+
+
