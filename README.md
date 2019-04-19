@@ -28,23 +28,23 @@ i.e. velocity is p or f
 
 
 # Building
-  git clone ...
-  cd src
-  javac -d ..\build -sourcepath src org\actg\createsfz\*.java
+    git clone ...
+    cd src
+    javac -d ..\build -sourcepath src org\actg\createsfz\*.java
 
 (reverse the slashes on Linux...)
 
 
 then...
 
-  cd ..
-  jar cvfe CreateSFZ.jar org/actg/createsfz/CreateSFZ -C build org/actg/createsfz
+    cd ..
+    jar cvfe CreateSFZ.jar org/actg/createsfz/CreateSFZ -C build org/actg/createsfz
 
 
 # Running
 
-  java -jar CreateSFZ.jar directoryName 
-  java -jar CreateSFZ.jar directoryName pianobook
+    java -jar CreateSFZ.jar directoryName 
+    java -jar CreateSFZ.jar directoryName pianobook
 
 
 
