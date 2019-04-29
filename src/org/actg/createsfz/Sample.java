@@ -27,7 +27,7 @@ public class Sample implements Comparable {
     protected int velocity;
     protected int id;
 
-    public Sample(String filename, String basename, int noteNumber, int velocity, int id) {
+    public Sample(String filename, int noteNumber, int velocity, int id) {
         this.filename = filename;
         this.noteNumber = noteNumber;
         this.velocity = velocity;

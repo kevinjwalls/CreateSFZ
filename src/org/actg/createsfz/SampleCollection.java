@@ -45,7 +45,7 @@ public class SampleCollection {
 
     protected String sampleDirName;
     protected String sampleBaseName;
-    protected File outputFile;
+    protected String outputFilename;
     protected Format format;
     protected List<String> filesUsed;
 
@@ -58,20 +58,42 @@ public class SampleCollection {
 
     protected static String REGEX_NOTENAME_GROUP = "([a-z]#?)";
 
+    /**
+     * Create a SampleCollection from a named directory.
+     *
+     * @param format
+     * @param dirname
+     * @throws IOException
+     */
     public SampleCollection(Format format, String dirname) throws IOException {
         this.sampleDirName = dirname;
         File dir = new File(dirname);
         if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) {
             throw new IOException("bad directory: " + dirname);
+        }
+        if (format != null) {
+            this.format = format;
         } else {
-            if (format != null) {
-                this.format = format;
-            } else {
-                this.format = probeFormat(dir);
-            }
-            samples = new HashMap<Integer, Set>();
-            filesUsed = addFiles(dir, format);
-            System.out.println(dirname + ": files used: " + filesUsed.size());
+            this.format = probeFormat(dir);
+        }
+        samples = new HashMap<Integer, Set>();
+        filesUsed = addFiles(dir, format);
+        System.out.println(dirname + ": files used: " + filesUsed.size());
+    }
+
+    /**
+     * Create a SampleCollection from specific files, with a given root note
+     * number.
+     *
+     * @param format
+     * @param sampleNames
+     * @param rootNote
+     */
+    public SampleCollection(Format format, List<String> sampleNames, int rootNote) {
+        samples = new HashMap<Integer, Set>();
+        int note = rootNote;
+        for (String s : sampleNames) {
+            addSample(new Sample(s, note++, 0 /* velocity */, 1));
         }
     }
 
@@ -104,10 +126,7 @@ public class SampleCollection {
                 String baseName = m.group(1);
                 if (sampleBaseName == null) {
                     sampleBaseName = baseName;
-                    outputFile = new File(sampleBaseName + ".sfz");
-                    if (outputFile.exists()) {
-                        throw new IOException("destination/output file exists: " + outputFile.getCanonicalFile());
-                    }
+                    outputFilename = sampleBaseName + ".sfz";
                 } else {
                     if (!sampleBaseName.equals(baseName)) {
                         System.err.println("Note: sample base name: " + sampleBaseName
@@ -128,7 +147,7 @@ public class SampleCollection {
                     if (variation != null) {
                         variationNumber = Integer.parseInt(variation);
                     }
-                    addSample(new Sample(f.getName(), baseName, noteNumber, velocity, variationNumber));
+                    addSample(new Sample(f.getName(), noteNumber, velocity, variationNumber));
                 } catch (NumberFormatException nfe) {
                     System.err.println("Skipping: '" + f + "' due to: " + nfe);
                 }
@@ -296,17 +315,25 @@ public class SampleCollection {
      *
      * @throws IOException
      */
-    public void writeSFZ() throws IOException {
-        if (outputFile != null) {
-            System.err.println("CreateSFZ: " + outputFile);
-            PrintStream out = new PrintStream(new FileOutputStream(outputFile));
-            out.println(HEADER);
-            out.println("<control>");
-            out.println("default_path=" + sampleDirName);
-            printRegions(out);
-            out.println(FOOTER);
-        } else {
-            System.err.println("no samples found.");
+    public void writeSFZ(String filename) throws IOException {
+        if (filename == null) {
+            filename = outputFilename;
         }
+        if (filename == null) {
+            throw new IOException("no output file");
+        }
+        File outputFile = new File(filename);
+        if (outputFile.exists()) {
+            throw new IOException("destination/output file exists: " + outputFile.getCanonicalFile());
+        }
+        System.err.println("CreateSFZ: " + outputFile);
+        PrintStream out = new PrintStream(new FileOutputStream(outputFile));
+        out.println(HEADER);
+        out.println("<control>");
+        if (sampleDirName != null) {
+            out.println("default_path=" + sampleDirName);
+        }
+        printRegions(out);
+        out.println(FOOTER);
     }
 }
