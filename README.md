@@ -1,18 +1,22 @@
 # CreateSFZ
 Free software (GPL), NO WARRANTY.
 
-
 Create SFZ format sound sample definitions from a directory of samples.
 Load the .SFZ file in a player (e.g. Sforzando).
 
+    java CreateSFZ [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY
+    where:
+    [ ... ] options are optional
+    DIRECTORY is a directory name to scan entirely for samples
+    FILE is a single file to use
+    FORMAT_NAME can be 'pianobook' or 'format1' (the default)
 
-CreateSFZ scans a directory for filenames in known formats, extracts 
-base instrument name,
-velocity,
-note name (C0, G#3, etc...),
+
+
+CreateSFZ scans a directory for filenames in known formats, extracts base instrument name,
+velocity, note name (C0, G#3, etc...),
 a variation number (for multiple samples per note, will be cycled through...).
-
-The base instrument name is used plus a file extension ".sfz".
+The found files are used to create an instrument file: the base instrument name is used plus a file extension ".sfz", unless the -o option is used to specify an output filename.
 
 Notes are given a range of keys extended DOWNWARD from the pitch named in the sample filename.
 
@@ -26,6 +30,12 @@ Specifying "pianobook" recognises:
 
 i.e. velocity is p or f
 
+# Single Sample Usage
+
+Specifying a single file creates a .sfz instrument with just that one sample.
+The filename is not interpreted for pitch etc, so the argument -note is needed, e.g. -note c3
+Also -o is needed.
+
 
 # Building
     git clone ...
@@ -34,14 +44,13 @@ i.e. velocity is p or f
 
 (reverse the slashes on Linux...)
 
-
 then...
 
     cd ..
     jar cvfe CreateSFZ.jar org/actg/createsfz/CreateSFZ -C build org/actg/createsfz
 
 
-# Running
+# Previous github "release" has more basic argument parsing:
 
     java -jar CreateSFZ.jar directoryName 
     java -jar CreateSFZ.jar directoryName pianobook
