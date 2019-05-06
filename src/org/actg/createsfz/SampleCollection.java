@@ -49,7 +49,6 @@ public class SampleCollection {
     protected Format format;
     protected List<String> filesUsed;
 
-    protected static final int KEY_RANGE = 10;
     // Map a note Number to a List of samples of increasing velocity/loudness:
     protected Map<Integer, Set> samples;
 
@@ -123,7 +122,7 @@ public class SampleCollection {
                 // Name_Hard-C4-1.wav
                 // "(.*)_(.*)\\-()\\-(\\d+)\\.wav";
                 // "baseName_velocity-NOTE-variation"
-                String baseName = m.group(1);
+                String baseName = m.group(format.getBaseNameGroup());
                 if (sampleBaseName == null) {
                     sampleBaseName = baseName;
                     outputFilename = sampleBaseName + ".sfz";
@@ -134,12 +133,17 @@ public class SampleCollection {
                         continue;
                     }
                 }
-                String velocityName = m.group(2);
-                int velocity = parseVelocityName(velocityName);
-                String noteName = m.group(3);
+                int velocity = -1;
+                if (format.getVelocityGroup() > 0) {
+                    String velocityName = m.group(format.getVelocityGroup());
+                    velocity = parseVelocityName(velocityName);
+                }
+
+                String noteName = m.group(format.getNoteNameGroup());
+
                 String variation = null;
-                if (m.groupCount() > 3) {
-                    variation = m.group(4);
+                if (format.getVariationNumberGroup() > 0) {
+                    variation = m.group(format.getVariationNumberGroup());
                 }
                 try {
                     int noteNumber = MIDI.noteNameToNumber(noteName);
@@ -185,7 +189,7 @@ public class SampleCollection {
     /**
      * Export all the samples in SFZ format.
      */
-    public void printRegions(PrintStream out) {
+    public void printRegions(int rangeLow, int rangeHigh, PrintStream out) {
         // Get the note names, sorted:
         Set<Integer> notes = new TreeSet<>();
         notes.addAll(samples.keySet());
@@ -203,7 +207,7 @@ public class SampleCollection {
             // or by KEY_RANGE on first iteration:
             int lokey = s1.noteNumber;
             if (noteCount == 0) {
-                lokey = lokey - KEY_RANGE;
+                lokey = lokey - rangeLow;
             } else {
                 lokey = prevKey + 1; // ...which can equal s1.noteNumber 
             }
@@ -215,11 +219,14 @@ public class SampleCollection {
             List<String> velocityStrings = getVelocityRanges(velocities);
             List<Set<Sample>> samplesByVelocity = splitByVelocity(set);
             for (Set<Sample> setPerVelocity : samplesByVelocity) {
-                // How many samples for that note and velocity: round-robin sequence.
+                // How many samples for that note (and velocity): round-robin sequence.
                 int seq = 1;
                 for (Sample s : setPerVelocity) {
-                    String velocityInfo = velocityStrings.get(s.velocity);
                     if (seq == 1) {
+                        String velocityInfo = "";
+                        if (s.velocity >= 0) {
+                            velocityInfo = velocityStrings.get(s.velocity);
+                        }
                         out.println("<group> " + velocityInfo); // e.g. lovel=55 hivel=90
                         out.println("seq_length=" + setPerVelocity.size());
                     }
@@ -315,7 +322,7 @@ public class SampleCollection {
      *
      * @throws IOException
      */
-    public void writeSFZ(String filename) throws IOException {
+    public void writeSFZ(String filename, int rangeLow, int rangeHigh) throws IOException {
         if (filename == null) {
             filename = outputFilename;
         }
@@ -333,7 +340,7 @@ public class SampleCollection {
         if (sampleDirName != null) {
             out.println("default_path=" + sampleDirName);
         }
-        printRegions(out);
+        printRegions(rangeLow, rangeHigh, out);
         out.println(FOOTER);
     }
 }

@@ -43,9 +43,21 @@ public class CreateSFZ {
 
     public static final String DEFAULT_FORMAT_NAME = "format1";
 
+    public static final String[] KNOWN_FORMATS = new String[]{"format1", "format2", "pianobook"};
+
+    public static final int KEY_RANGE = 24;
+
     public interface Format {
 
         public String filenameRegex();
+
+        public int getBaseNameGroup();
+
+        public int getNoteNameGroup();
+
+        public int getVelocityGroup();
+
+        public int getVariationNumberGroup();
 
         public List<String> velocities();
     }
@@ -54,6 +66,49 @@ public class CreateSFZ {
 
         public String filenameRegex() {
             return "(.*)_([a-zA-Z]+)\\-(.*)\\-(\\d+)\\.wav"; // "baseName_velocityName-NoteName-VariationNumber"
+        }
+
+        public int getBaseNameGroup() {
+            return 1;
+        }
+
+        public int getNoteNameGroup() {
+            return 3;
+        }
+
+        public int getVelocityGroup() {
+            return 2;
+        }
+
+        public int getVariationNumberGroup() {
+            return 4;
+        }
+
+        public List<String> velocities() {
+            return Arrays.asList("Soft", "Medium", "Hard");
+        }
+    }
+
+    public class Format2 implements Format {
+
+        public String filenameRegex() {
+            return "(.*) (.*) (\\d+)\\.wav"; // baseName notename variationNumber
+        }
+
+        public int getBaseNameGroup() {
+            return 1;
+        }
+
+        public int getNoteNameGroup() {
+            return 2;
+        }
+
+        public int getVelocityGroup() {
+            return -1;
+        }
+
+        public int getVariationNumberGroup() {
+            return 3;
         }
 
         public List<String> velocities() {
@@ -65,6 +120,22 @@ public class CreateSFZ {
 
         public String filenameRegex() {
             return "(.*)\\s+([pf]+)\\s+(.*)\\.wav"; // "baseName p|f NoteName"
+        }
+
+        public int getBaseNameGroup() {
+            return 1;
+        }
+
+        public int getNoteNameGroup() {
+            return 3;
+        }
+
+        public int getVelocityGroup() {
+            return 2;
+        }
+
+        public int getVariationNumberGroup() {
+            return -1;
         }
 
         public List<String> velocities() {
@@ -81,6 +152,11 @@ public class CreateSFZ {
      *
      * Optional: sample format name specified with: -format FORMAT_NAME
      *
+     * -note
+     *
+     * -o
+     *
+     *
      * Required argument: directory name
      *
      * Output filename is implied from sample filenames plus .sfz extension.
@@ -94,7 +170,7 @@ public class CreateSFZ {
             System.exit(1);
         }
         String dirname = null;
-        String formatName = DEFAULT_FORMAT_NAME;
+        String formatName = null; // DEFAULT_FORMAT_NAME;
         int rootNote = -1; // MIDI.noteNameToNumber("C3");
         String outputFilename = null;
         List<String> sampleNames = new ArrayList<>();
@@ -148,25 +224,77 @@ public class CreateSFZ {
         if (sampleDirName != null && !sampleDirName.endsWith(File.separator)) {
             this.sampleDirName += File.separator;
         }
-        Format format = null;
-        switch (formatName) {
-            case "pianobook": {
-                format = new Format_PianoBook();
-                break;
-            }
-            default:
-                format = new Format1();
+        Format format = formatName != null ? formatForName(formatName) : formatProbe(sampleDirName, sampleNames);
+        if (format == null) {
+            throw new RuntimeException("no recognised sample filename format");
         }
         // Create a SampleCollection from the given directory or sample names:
         try {
-            if (!sampleNames.isEmpty()) {
-                samples = new SampleCollection(format, sampleNames, rootNote);
+            if (sampleNames.isEmpty()) {
+                samples = new SampleCollection(format, sampleDirName);
             } else {
-                samples = new SampleCollection(format, this.sampleDirName);
+                samples = new SampleCollection(format, sampleNames, rootNote);
             }
         } catch (IOException ioe) {
-            System.err.println(ioe.getMessage());
+            ioe.printStackTrace(System.err);
         }
+    }
+
+    /**
+     * Return a Format for the given name, or null if none recognised.
+     *
+     * @param formatName
+     * @return
+     */
+    public Format formatForName(String formatName) {
+        switch (formatName) {
+            case "pianobook": {
+                return new Format_PianoBook();
+            }
+            case "format1": {
+                return new Format1();
+            }
+            case "format2": {
+                return new Format2();
+            }
+            default:
+                return null;
+        }
+    }
+
+    public Format formatProbe(String sampleDirName, List<String> sampleNames) {
+        int mostFound = 0;
+        String bestName = null;
+        Format bestFormat = null;
+        for (String fn : KNOWN_FORMATS) {
+            try {
+                System.out.println("trying filename format: " + fn);
+                Format f = formatForName(fn);
+                SampleCollection sc = createSampleCollection(f, sampleDirName, sampleNames);
+                if (sc.samples.size() > mostFound) {
+                    bestName = fn;
+                    bestFormat = f;
+                }
+            } catch (IOException ioe) {
+                // ignore this Format...
+            }
+        }
+        if (bestName != null) {
+            System.out.println("Using format: " + bestName);
+            return bestFormat;
+        } else {
+            return null;
+        }
+    }
+
+    public SampleCollection createSampleCollection(Format format, String sampleDirName, List<String> sampleNames) throws IOException {
+        SampleCollection s = null;
+        if (!sampleNames.isEmpty()) {
+            s = new SampleCollection(format, sampleNames, 0 /* just probing... */);
+        } else {
+            s = new SampleCollection(format, sampleDirName);
+        }
+        return s;
     }
 
     /**
@@ -176,6 +304,6 @@ public class CreateSFZ {
      * @throws IOException
      */
     protected void writeSFZ(String outputFilename) throws IOException {
-        samples.writeSFZ(outputFilename);
+        samples.writeSFZ(outputFilename, KEY_RANGE, KEY_RANGE);
     }
 }
