@@ -34,9 +34,10 @@ public class CreateSFZ {
             + "This is free software, and you are welcome to redistribute it\n"
             + "under certain conditions.";
 
-    public static final String USAGE = "java CreateSFZ[ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY \n"
+    public static final String USAGE = "java CreateSFZ [ -filter FILENAME_FILTER]  [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY \n"
             + "where:\n"
             + "[ ... ] options are optional\n"
+            + " -filter FILENAME_FILTER      Specifies text that must be in sample filenames\n"
             + "DIRECTORY is a directory name to scan entirely for samples\n"
             + "FILE is a single file to use\n"
             + "FORMAT_NAME can be 'pianobook' or 'format1' (the default)";
@@ -89,10 +90,13 @@ public class CreateSFZ {
         }
     }
 
+    /**
+     * Very simple sample names of the format: "NAME NOTE.wav"
+     */
     public class Format2 implements Format {
 
         public String filenameRegex() {
-            return "(.*) (.*) (\\d+)\\.wav"; // baseName notename variationNumber
+            return "(.*) (.*)\\.wav"; // baseName notename variationNumber
         }
 
         public int getBaseNameGroup() {
@@ -108,7 +112,7 @@ public class CreateSFZ {
         }
 
         public int getVariationNumberGroup() {
-            return 3;
+            return -1;
         }
 
         public List<String> velocities() {
@@ -145,7 +149,7 @@ public class CreateSFZ {
     }
 
     protected SampleCollection samples;
-    protected String sampleDirName;
+    //protected String sampleDirName;
 
     /**
      * Command-line arguments:
@@ -170,6 +174,7 @@ public class CreateSFZ {
             System.exit(1);
         }
         String dirname = null;
+        String filenameFilter = null;
         String formatName = null; // DEFAULT_FORMAT_NAME;
         int rootNote = -1; // MIDI.noteNameToNumber("C3");
         String outputFilename = null;
@@ -179,6 +184,10 @@ public class CreateSFZ {
                 i++;
                 formatName = args[i];
                 continue;
+            } else if (args[i].equals("-filter")) {
+                i++;
+                filenameFilter = args[i];
+                System.out.println("Filtering sample files using pattern: '" + filenameFilter + "'");
             } else if (args[i].equals("-note")) {
                 i++;
                 rootNote = MIDI.noteNameToNumber(args[i]);
@@ -206,7 +215,7 @@ public class CreateSFZ {
             dirname = ".";
         }
         // System.out.println(COPYTEXT);
-        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, sampleNames, rootNote);
+        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote);
         createSFZ.writeSFZ(outputFilename);
     }
 
@@ -215,23 +224,25 @@ public class CreateSFZ {
      *
      * @param formatName
      * @param sampleDirName
+     * @param filenameFilter
      * @param sampleNames
      * @param rootNote
      */
-    public CreateSFZ(String formatName, String sampleDirName, List<String> sampleNames, int rootNote) {
-        this.sampleDirName = sampleDirName;
+    public CreateSFZ(String formatName, String sampleDirName, String filenameFilter, List<String> sampleNames, int rootNote) {
+        // sampleDirName MUST end in a file separator:
         // SForzando at least doesn't add a separator between the dir name we give and any samples...
         if (sampleDirName != null && !sampleDirName.endsWith(File.separator)) {
-            this.sampleDirName += File.separator;
+            sampleDirName = sampleDirName + File.separator;
         }
-        Format format = formatName != null ? formatForName(formatName) : formatProbe(sampleDirName, sampleNames);
+        //this.sampleDirName = sampleDirName;
+        Format format = formatName != null ? formatForName(formatName) : formatProbe(sampleDirName, filenameFilter, sampleNames);
         if (format == null) {
             throw new RuntimeException("no recognised sample filename format");
         }
         // Create a SampleCollection from the given directory or sample names:
         try {
             if (sampleNames.isEmpty()) {
-                samples = new SampleCollection(format, sampleDirName);
+                samples = new SampleCollection(format, sampleDirName, filenameFilter);
             } else {
                 samples = new SampleCollection(format, sampleNames, rootNote);
             }
@@ -262,15 +273,16 @@ public class CreateSFZ {
         }
     }
 
-    public Format formatProbe(String sampleDirName, List<String> sampleNames) {
+    public Format formatProbe(String sampleDirName, String filenameFilter, List<String> sampleNames) {
+        System.out.println("Probing for recognised sample filename format...");
         int mostFound = 0;
         String bestName = null;
         Format bestFormat = null;
         for (String fn : KNOWN_FORMATS) {
             try {
-                System.out.println("trying filename format: " + fn);
+                System.out.println("Trying filename format: " + fn);
                 Format f = formatForName(fn);
-                SampleCollection sc = createSampleCollection(f, sampleDirName, sampleNames);
+                SampleCollection sc = createSampleCollection(f, sampleDirName, filenameFilter, sampleNames);
                 if (sc.samples.size() > mostFound) {
                     bestName = fn;
                     bestFormat = f;
@@ -287,12 +299,14 @@ public class CreateSFZ {
         }
     }
 
-    public SampleCollection createSampleCollection(Format format, String sampleDirName, List<String> sampleNames) throws IOException {
+    public SampleCollection createSampleCollection(Format format, String sampleDirName, String filenameFilter,
+            List<String> sampleNames) throws IOException {
+
         SampleCollection s = null;
         if (!sampleNames.isEmpty()) {
             s = new SampleCollection(format, sampleNames, 0 /* just probing... */);
         } else {
-            s = new SampleCollection(format, sampleDirName);
+            s = new SampleCollection(format, sampleDirName, filenameFilter);
         }
         return s;
     }

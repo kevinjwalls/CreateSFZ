@@ -64,7 +64,7 @@ public class SampleCollection {
      * @param dirname
      * @throws IOException
      */
-    public SampleCollection(Format format, String dirname) throws IOException {
+    public SampleCollection(Format format, String dirname, String filenameFilter) throws IOException {
         this.sampleDirName = dirname;
         File dir = new File(dirname);
         if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) {
@@ -76,7 +76,7 @@ public class SampleCollection {
             this.format = probeFormat(dir);
         }
         samples = new HashMap<Integer, Set>();
-        filesUsed = addFiles(dir, format);
+        filesUsed = addFiles(dir, filenameFilter, format);
         System.out.println(dirname + ": files used: " + filesUsed.size());
     }
 
@@ -111,12 +111,17 @@ public class SampleCollection {
      * @return
      * @throws IOException
      */
-    public List<String> addFiles(File dir, Format format) throws IOException {
+    public List<String> addFiles(File dir, String filenameFilter, Format format) throws IOException {
         List<String> filesUsed = new LinkedList<>();
         List<String> filesNotUsed = new LinkedList<>();
         Pattern pat_filename = Pattern.compile(format.filenameRegex());
         for (File f : dir.listFiles()) {
-            Matcher m = pat_filename.matcher(f.getName());
+            String filename = f.getName();
+            if (filenameFilter != null && !filename.contains(filenameFilter)) {
+                filesNotUsed.add(f.getName());
+                continue; // Skip a file that does not contain the given filenameFilter.
+            }
+            Matcher m = pat_filename.matcher(filename);
             if (m.find()) {
                 filesUsed.add(f.getName());
                 // Name_Hard-C4-1.wav
@@ -129,7 +134,7 @@ public class SampleCollection {
                 } else {
                     if (!sampleBaseName.equals(baseName)) {
                         System.err.println("Note: sample base name: " + sampleBaseName
-                                + ": ignoring file with different base name: " + baseName + ": " + f);
+                                + ": ignoring sample file with different base name: " + baseName + ": " + f);
                         continue;
                     }
                 }
@@ -203,13 +208,13 @@ public class SampleCollection {
             Sample s1 = set.iterator().next();
             out.println("<global>");
             out.println("pitch_keycenter=" + s1.noteNumber);
-            // Expand key range downwards, to the note after the previous note seen, 
+            // Expand key range downwards, to the note after the previous note seen,
             // or by KEY_RANGE on first iteration:
             int lokey = s1.noteNumber;
             if (noteCount == 0) {
                 lokey = lokey - rangeLow;
             } else {
-                lokey = prevKey + 1; // ...which can equal s1.noteNumber 
+                lokey = prevKey + 1; // ...which can equal s1.noteNumber
             }
             out.println("lokey=" + lokey);
             out.println("hikey=" + s1.noteNumber);
