@@ -58,6 +58,8 @@ public class CreateSFZ {
 
         public int getVelocityGroup();
 
+        public int getReleaseTriggerGroup();
+
         public int getVariationNumberGroup();
 
         public List<String> velocities();
@@ -81,6 +83,10 @@ public class CreateSFZ {
             return 2;
         }
 
+        public int getReleaseTriggerGroup() {
+            return -1;
+        }
+
         public int getVariationNumberGroup() {
             return 4;
         }
@@ -96,7 +102,7 @@ public class CreateSFZ {
     public class Format2 implements Format {
 
         public String filenameRegex() {
-            return "(.*) (.*)\\.wav"; // baseName notename variationNumber
+            return "(.*?) (RT )?(.*)\\.wav"; // baseName notename
         }
 
         public int getBaseNameGroup() {
@@ -104,11 +110,15 @@ public class CreateSFZ {
         }
 
         public int getNoteNameGroup() {
-            return 2;
+            return 3;
         }
 
         public int getVelocityGroup() {
             return -1;
+        }
+
+        public int getReleaseTriggerGroup() {
+            return 2;
         }
 
         public int getVariationNumberGroup() {
@@ -136,6 +146,10 @@ public class CreateSFZ {
 
         public int getVelocityGroup() {
             return 2;
+        }
+
+        public int getReleaseTriggerGroup() {
+            return -1;
         }
 
         public int getVariationNumberGroup() {
@@ -273,6 +287,15 @@ public class CreateSFZ {
         }
     }
 
+    /**
+     * Probe the files in a directory for the sample Format with the most
+     * recognised Samples.
+     *
+     * @param sampleDirName
+     * @param filenameFilter
+     * @param sampleNames
+     * @return Format or null
+     */
     public Format formatProbe(String sampleDirName, String filenameFilter, List<String> sampleNames) {
         System.out.println("Probing for recognised sample filename format...");
         int mostFound = 0;

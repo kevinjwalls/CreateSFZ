@@ -44,13 +44,15 @@ import org.actg.createsfz.CreateSFZ.Format;
 public class SampleCollection {
 
     protected String sampleDirName;
-    protected String sampleBaseName;
+    protected String sampleGroupBaseName;
     protected String outputFilename;
     protected Format format;
     protected List<String> filesUsed;
 
     // Map a note Number to a List of samples of increasing velocity/loudness:
     protected Map<Integer, Set> samples;
+    // Release Triggers, effectively another layer...
+    protected Map<Integer, Set> samplesReleaseTriggers;
 
     public static String HEADER = "//\n// SFZ file created by CreateSFZ.\n//";
     public static String FOOTER = "//\n// End of SFZ file created by CreateSFZ.\n//";
@@ -59,6 +61,9 @@ public class SampleCollection {
 
     /**
      * Create a SampleCollection from a named directory.
+     *
+     * If the given Format is null, probe for a suitable format to recognise
+     * files in the directory.
      *
      * @param format
      * @param dirname
@@ -76,6 +81,7 @@ public class SampleCollection {
             this.format = probeFormat(dir);
         }
         samples = new HashMap<Integer, Set>();
+        samplesReleaseTriggers = new HashMap<Integer, Set>();
         filesUsed = addFiles(dir, filenameFilter, format);
         System.out.println(dirname + ": files used: " + filesUsed.size());
     }
@@ -83,6 +89,8 @@ public class SampleCollection {
     /**
      * Create a SampleCollection from specific files, with a given root note
      * number.
+     *
+     * Presumes the sample names in the List are not release triggers.
      *
      * @param format
      * @param sampleNames
@@ -92,7 +100,7 @@ public class SampleCollection {
         samples = new HashMap<Integer, Set>();
         int note = rootNote;
         for (String s : sampleNames) {
-            addSample(new Sample(s, note++, 0 /* velocity */, 1));
+            addSample(new Sample(s, note++, 0 /* velocity */, 1), false);
         }
     }
 
@@ -123,19 +131,30 @@ public class SampleCollection {
             }
             Matcher m = pat_filename.matcher(filename);
             if (m.find()) {
-                filesUsed.add(f.getName());
-                // Name_Hard-C4-1.wav
+                // e.g. Name_Hard-C4-1.wav
                 // "(.*)_(.*)\\-()\\-(\\d+)\\.wav";
                 // "baseName_velocity-NOTE-variation"
-                String baseName = m.group(format.getBaseNameGroup());
-                if (sampleBaseName == null) {
-                    sampleBaseName = baseName;
-                    outputFilename = sampleBaseName + ".sfz";
+                String thisBaseName = m.group(format.getBaseNameGroup());
+                if (sampleGroupBaseName == null) {
+                    // Use first recognised Sample to set a sampleBaseName:
+                    sampleGroupBaseName = thisBaseName;
+                    outputFilename = sampleGroupBaseName + ".sfz";
                 } else {
-                    if (!sampleBaseName.equals(baseName)) {
-                        System.err.println("Note: sample base name: " + sampleBaseName
-                                + ": ignoring sample file with different base name: " + baseName + ": " + f);
-                        continue;
+                    if (!sampleGroupBaseName.equals(thisBaseName)) {
+                        if (!thisBaseName.startsWith(sampleGroupBaseName)) {
+                            System.err.println("Note: sample base name: " + sampleGroupBaseName
+                                    + ": ignoring sample file with different base name: " + thisBaseName + ": " + f);
+                            continue;
+                        }
+                    }
+                }
+                filesUsed.add(f.getName());
+                String noteName = m.group(format.getNoteNameGroup());
+                boolean isReleaseTrigger = false;
+                if (format.getReleaseTriggerGroup() >= 0) {
+                    String rt = m.group(format.getReleaseTriggerGroup());
+                    if (rt != null) {
+                        isReleaseTrigger = true;
                     }
                 }
                 int velocity = -1;
@@ -143,8 +162,6 @@ public class SampleCollection {
                     String velocityName = m.group(format.getVelocityGroup());
                     velocity = parseVelocityName(velocityName);
                 }
-
-                String noteName = m.group(format.getNoteNameGroup());
 
                 String variation = null;
                 if (format.getVariationNumberGroup() > 0) {
@@ -156,7 +173,7 @@ public class SampleCollection {
                     if (variation != null) {
                         variationNumber = Integer.parseInt(variation);
                     }
-                    addSample(new Sample(f.getName(), noteNumber, velocity, variationNumber));
+                    addSample(new Sample(f.getName(), noteNumber, velocity, variationNumber), isReleaseTrigger);
                 } catch (NumberFormatException nfe) {
                     System.err.println("Skipping: '" + f + "' due to: " + nfe);
                 }
@@ -167,7 +184,30 @@ public class SampleCollection {
         return filesUsed;
     }
 
-    protected synchronized void addSample(Sample s) {
+    /**
+     * Add a Sample to this SampleCollection.
+     *
+     * @param s
+     * @param isReleaseTrigger
+     */
+    protected synchronized void addSample(Sample s, boolean isReleaseTrigger) {
+        if (!isReleaseTrigger) {
+            addSample(samples, s);
+        } else {
+            addSample(samplesReleaseTriggers, s);
+        }
+    }
+
+    /**
+     * Add a Sample to this SampleCollection.
+     *
+     * Place the Sample in a Set of Samples, in a Map of note numbers to those
+     * Sets of Samples.
+     *
+     * @param samples
+     * @param s
+     */
+    protected synchronized void addSample(Map<Integer, Set> samples, Sample s) {
         Set<Sample> set = samples.get(s.noteNumber);
         if (set == null) {
             set = new TreeSet<>();
@@ -192,9 +232,9 @@ public class SampleCollection {
     }
 
     /**
-     * Export all the samples in SFZ format.
+     * Export all the samples in SFZ format: i.e. print as plaintext.
      */
-    public void printRegions(int rangeLow, int rangeHigh, PrintStream out) {
+    public void printRegions(Map<Integer, Set> samples, int rangeLow, int rangeHigh, boolean releaseTriggers, PrintStream out) {
         // Get the note names, sorted:
         Set<Integer> notes = new TreeSet<>();
         notes.addAll(samples.keySet());
@@ -238,6 +278,9 @@ public class SampleCollection {
                     out.println("<region>");
                     out.println("sample=" + s.filename);
                     out.println("seq_position=" + seq);
+                    if (releaseTriggers) {
+                        out.println("trigger=release");
+                    }
                     out.println();
                     seq++;
                 }
@@ -345,7 +388,8 @@ public class SampleCollection {
         if (sampleDirName != null) {
             out.println("default_path=" + sampleDirName);
         }
-        printRegions(rangeLow, rangeHigh, out);
+        printRegions(samples, rangeLow, rangeHigh, false, out);
+        printRegions(samplesReleaseTriggers, rangeLow, rangeHigh, true, out);
         out.println(FOOTER);
     }
 }

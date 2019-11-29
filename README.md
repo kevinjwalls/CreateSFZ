@@ -4,9 +4,10 @@ Free software (GPL), NO WARRANTY.
 Create SFZ format sound sample definitions from a directory of samples.
 Load the .SFZ file in a player (e.g. Sforzando).
 
-    java CreateSFZ [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY
+    java CreateSFZ [ -filter FILENAME_FILTER] [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY
     where:
     [ ... ] options are optional
+     -filter FILENAME_FILTER      Specifies text that must be in sample filenames
     DIRECTORY is a directory name to scan entirely for samples
     FILE is a single file to use
     FORMAT_NAME can be 'pianobook' or 'format1' (the default)
@@ -18,7 +19,7 @@ velocity, note name (C0, G#3, etc...),
 a variation number (for multiple samples per note, will be cycled through...).
 The found files are used to create an instrument file: the base instrument name is used plus a file extension ".sfz", unless the -o option is used to specify an output filename.
 
-Notes are given a range of keys extended DOWNWARD from the pitch named in the sample filename.
+Notes are given a range of keys extended DOWNWARD from the pitch named in the sample filename, to the next lowest sample.
 
 The default format recognises:
 "baseName\_velocityName-NoteName-VariationNumber.wav"
