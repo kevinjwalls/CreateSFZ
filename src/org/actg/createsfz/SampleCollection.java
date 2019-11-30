@@ -403,6 +403,8 @@ public class SampleCollection {
         System.err.println("CreateSFZ: " + outputFile);
         PrintStream out = new PrintStream(new FileOutputStream(outputFile));
         out.println(HEADER);
+        out.println("// Sample filename format: " + format.toString());
+        out.println("//");
         out.println("<control>");
         if (sampleDirName != null) {
             out.println("default_path=" + sampleDirName);

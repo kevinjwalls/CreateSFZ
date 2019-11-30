@@ -27,9 +27,10 @@ The default format recognises:
 ..where velocity name is Soft, Medium or Hard.
 
 Specifying "pianobook" recognises:
- "baseName p|f NoteName.wav"
+ "baseName velocity NoteName RT?.wav"
+..where velocity is any number of m, p, f characters,
+and RT is present only for a release trigger (played on key or sustain pedal up).
 
-i.e. velocity is p or f
 
 # Single Sample Usage
 
