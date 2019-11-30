@@ -65,10 +65,14 @@ public class CreateSFZ {
         public List<String> velocities();
     }
 
+    /**
+     * Format1: "baseName_velocityName-NoteName-VariationNumber.wav" where
+     * VelocityName is Soft, Medium or Hard.
+     */
     public class Format1 implements Format {
 
         public String filenameRegex() {
-            return "(.*)_([a-zA-Z]+)\\-(.*)\\-(\\d+)\\.wav"; // "baseName_velocityName-NoteName-VariationNumber"
+            return "(.*)_([a-zA-Z]+)\\-(.*)\\-(\\d+)\\.wav"; // "baseName_velocityName-NoteName-VariationNumber.wav"
         }
 
         public int getBaseNameGroup() {
@@ -97,7 +101,8 @@ public class CreateSFZ {
     }
 
     /**
-     * Very simple sample names of the format: "NAME NOTE.wav"
+     * Very simple sample names of the format: "NAME NOTE.wav" or "NAME RT
+     * NOTE.wav".
      */
     public class Format2 implements Format {
 
@@ -130,10 +135,16 @@ public class CreateSFZ {
         }
     }
 
-    public class Format_PianoBook implements Format {
+    /**
+     * A format for pianobook samples... e.g.
+     * "1911+Bechstein+Upright+-+Andrew+Ward" with sample names such as
+     * "AWBechstein mf D#5.wav" and "AWBechstein A#5 RT.wav"
+     */
+    public class Format_PianoBook1 implements Format {
 
         public String filenameRegex() {
-            return "(.*)\\s+([pf]+)\\s+(.*)\\.wav"; // "baseName p|f NoteName"
+            return "([A-Za-z]*)?\\s+([mpf]+)?\\s*?([A-Z#0-9]*?)(\\s+RT)?\\.wav"; // "baseName velocity? NoteName RT?"
+            //return "([A-Za-z]*)?\\s+([mpf]+)?\\s*?([A-Z#0-9]*?)(\\s+RT)?\\.wav"; // "baseName velocity? NoteName RT?"
         }
 
         public int getBaseNameGroup() {
@@ -149,7 +160,7 @@ public class CreateSFZ {
         }
 
         public int getReleaseTriggerGroup() {
-            return -1;
+            return 4;
         }
 
         public int getVariationNumberGroup() {
@@ -157,13 +168,14 @@ public class CreateSFZ {
         }
 
         public List<String> velocities() {
-            return Arrays.asList("p", "f");
+            return Arrays.asList("p", "mf", "f");
             // return Arrays.asList("pp", "p", "f", "ff");
         }
     }
 
-    protected SampleCollection samples;
+    protected SampleCollection sampleCollection;
     //protected String sampleDirName;
+    protected int releaseLevel;
 
     /**
      * Command-line arguments:
@@ -191,6 +203,7 @@ public class CreateSFZ {
         String filenameFilter = null;
         String formatName = null; // DEFAULT_FORMAT_NAME;
         int rootNote = -1; // MIDI.noteNameToNumber("C3");
+        int releaseLevel = 0; // passed to volume= param for release triggers, specified in db: -144 to 6
         String outputFilename = null;
         List<String> sampleNames = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
@@ -210,6 +223,16 @@ public class CreateSFZ {
                 i++;
                 outputFilename = args[i];
                 continue;
+            } else if (args[i].equals("-releaseLevel")) {
+                i++;
+                try {
+                    releaseLevel = Integer.parseInt(args[i]);
+                    if (releaseLevel < -144 || releaseLevel > 6) {
+                        System.out.println("Warning: specified releaseLevel (" + releaseLevel + ") outside documented range of -144 to 6 (db).");
+                    }
+                } catch (NumberFormatException nfe) {
+                    throw new RuntimeException("specify '-releaseLevel PERCENT' where PERCENT is an integer value.");
+                }
             } else {
                 File f = new File(args[i]);
                 if (!f.exists()) {
@@ -229,7 +252,7 @@ public class CreateSFZ {
             dirname = ".";
         }
         // System.out.println(COPYTEXT);
-        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote);
+        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote, releaseLevel);
         createSFZ.writeSFZ(outputFilename);
     }
 
@@ -241,8 +264,12 @@ public class CreateSFZ {
      * @param filenameFilter
      * @param sampleNames
      * @param rootNote
+     * @param releaseLevel
      */
-    public CreateSFZ(String formatName, String sampleDirName, String filenameFilter, List<String> sampleNames, int rootNote) {
+    public CreateSFZ(String formatName, String sampleDirName, String filenameFilter, List<String> sampleNames,
+            int rootNote, int releaseLevel) {
+
+        this.releaseLevel = releaseLevel;
         // sampleDirName MUST end in a file separator:
         // SForzando at least doesn't add a separator between the dir name we give and any samples...
         if (sampleDirName != null && !sampleDirName.endsWith(File.separator)) {
@@ -256,9 +283,9 @@ public class CreateSFZ {
         // Create a SampleCollection from the given directory or sample names:
         try {
             if (sampleNames.isEmpty()) {
-                samples = new SampleCollection(format, sampleDirName, filenameFilter);
+                sampleCollection = new SampleCollection(format, sampleDirName, filenameFilter);
             } else {
-                samples = new SampleCollection(format, sampleNames, rootNote);
+                sampleCollection = new SampleCollection(format, sampleNames, rootNote);
             }
         } catch (IOException ioe) {
             ioe.printStackTrace(System.err);
@@ -274,7 +301,7 @@ public class CreateSFZ {
     public Format formatForName(String formatName) {
         switch (formatName) {
             case "pianobook": {
-                return new Format_PianoBook();
+                return new Format_PianoBook1();
             }
             case "format1": {
                 return new Format1();
@@ -341,6 +368,6 @@ public class CreateSFZ {
      * @throws IOException
      */
     protected void writeSFZ(String outputFilename) throws IOException {
-        samples.writeSFZ(outputFilename, KEY_RANGE, KEY_RANGE);
+        sampleCollection.writeSFZ(outputFilename, KEY_RANGE, KEY_RANGE, releaseLevel);
     }
 }

@@ -148,7 +148,6 @@ public class SampleCollection {
                         }
                     }
                 }
-                filesUsed.add(f.getName());
                 String noteName = m.group(format.getNoteNameGroup());
                 boolean isReleaseTrigger = false;
                 if (format.getReleaseTriggerGroup() >= 0) {
@@ -160,23 +159,37 @@ public class SampleCollection {
                 int velocity = -1;
                 if (format.getVelocityGroup() > 0) {
                     String velocityName = m.group(format.getVelocityGroup());
-                    velocity = parseVelocityName(velocityName);
-                }
-
-                String variation = null;
-                if (format.getVariationNumberGroup() > 0) {
-                    variation = m.group(format.getVariationNumberGroup());
-                }
-                try {
-                    int noteNumber = MIDI.noteNameToNumber(noteName);
-                    int variationNumber = -1;
-                    if (variation != null) {
-                        variationNumber = Integer.parseInt(variation);
+                    // Check as release trigger may not have have velocity:
+                    if (velocityName != null && !velocityName.isEmpty()) {
+                        velocityName = velocityName.trim();
+                        velocity = parseVelocityName(velocityName);
                     }
-                    addSample(new Sample(f.getName(), noteNumber, velocity, variationNumber), isReleaseTrigger);
-                } catch (NumberFormatException nfe) {
-                    System.err.println("Skipping: '" + f + "' due to: " + nfe);
                 }
+                // Decode note:
+                int noteNumber = -1;
+                try {
+                    noteName = noteName.trim();
+                    noteNumber = MIDI.noteNameToNumber(noteName);
+                } catch (NumberFormatException nfe) {
+                    System.err.println("Skipping: '" + f + " with noteName='" + noteName + "', due to: " + nfe);
+                    continue;
+                }
+                // Decode optional variation number:
+                int variationNumber = -1;
+                if (format.getVariationNumberGroup() > 0) {
+                    String variation = m.group(format.getVariationNumberGroup());
+                    if (variation != null) {
+                        try {
+                            variationNumber = Integer.parseInt(variation);
+                        } catch (NumberFormatException nfe) {
+                            System.err.println("Skipping: '" + f + " with noteName='" + noteName + "' and variation#='" + variation
+                                    + "', due to: " + nfe);
+                            continue;
+                        }
+                    }
+                }
+                addSample(new Sample(f.getName(), noteNumber, velocity, variationNumber), isReleaseTrigger);
+                filesUsed.add(f.getName());
             } else {
                 filesNotUsed.add(f.getName());
             }
@@ -234,7 +247,9 @@ public class SampleCollection {
     /**
      * Export all the samples in SFZ format: i.e. print as plaintext.
      */
-    public void printRegions(Map<Integer, Set> samples, int rangeLow, int rangeHigh, boolean releaseTriggers, PrintStream out) {
+    public void printRegions(Map<Integer, Set> samples, int rangeLow, int rangeHigh, boolean releaseTriggers,
+            int level, PrintStream out) {
+
         // Get the note names, sorted:
         Set<Integer> notes = new TreeSet<>();
         notes.addAll(samples.keySet());
@@ -280,6 +295,10 @@ public class SampleCollection {
                     out.println("seq_position=" + seq);
                     if (releaseTriggers) {
                         out.println("trigger=release");
+                    }
+                    if (level != 0) {
+                        // Optional volume scale.  Used to trim level of release triggers.
+                        out.println("volume=" + level);
                     }
                     out.println();
                     seq++;
@@ -370,7 +389,7 @@ public class SampleCollection {
      *
      * @throws IOException
      */
-    public void writeSFZ(String filename, int rangeLow, int rangeHigh) throws IOException {
+    public void writeSFZ(String filename, int rangeLow, int rangeHigh, int releaseLevel) throws IOException {
         if (filename == null) {
             filename = outputFilename;
         }
@@ -388,8 +407,8 @@ public class SampleCollection {
         if (sampleDirName != null) {
             out.println("default_path=" + sampleDirName);
         }
-        printRegions(samples, rangeLow, rangeHigh, false, out);
-        printRegions(samplesReleaseTriggers, rangeLow, rangeHigh, true, out);
+        printRegions(samples, rangeLow, rangeHigh, false, 0, out);
+        printRegions(samplesReleaseTriggers, rangeLow, rangeHigh, true, releaseLevel, out);
         out.println(FOOTER);
     }
 }
