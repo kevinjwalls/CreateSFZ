@@ -55,6 +55,7 @@ Build manually:
     
 (reverse the slashes on Linux...)
 then...
+
     cd ..
     jar cvfe CreateSFZ.jar org/actg/createsfz/CreateSFZ -C build org/actg/createsfz
 
