@@ -4,7 +4,7 @@ Free software (GPL), NO WARRANTY.
 Create SFZ format sound sample definitions from a directory of samples.
 Load the .SFZ file in a player (e.g. Sforzando).
 
-    java CreateSFZ [ -filter FILENAME_FILTER] [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY
+    java -jar CreateSFZ.jar [ -filter FILENAME_FILTER] [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY
     where:
     [ ... ] options are optional
      -filter FILENAME_FILTER      Specifies text that must be in sample filenames
@@ -41,13 +41,17 @@ Also -o is needed.
 
 # Building
     git clone ...
+    cd CreateSFZ                   # Presuming the clone directory name is CreateSFZ
+    
+Build with "make":
+    make
+    java -jar build/CreateSFZ.jar ...options....
+    
+Build manually:
     cd src
     javac -d ..\build -sourcepath src org\actg\createsfz\*.java
-
 (reverse the slashes on Linux...)
-
 then...
-
     cd ..
     jar cvfe CreateSFZ.jar org/actg/createsfz/CreateSFZ -C build org/actg/createsfz
 
