@@ -44,12 +44,15 @@ Also -o is needed.
     cd CreateSFZ                   # Presuming the clone directory name is CreateSFZ
     
 Build with "make":
+
     make
     java -jar build/CreateSFZ.jar ...options....
     
 Build manually:
+
     cd src
     javac -d ..\build -sourcepath src org\actg\createsfz\*.java
+    
 (reverse the slashes on Linux...)
 then...
     cd ..
