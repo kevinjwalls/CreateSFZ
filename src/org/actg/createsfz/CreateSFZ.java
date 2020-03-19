@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019 Kevin Walls
+ * Copyright (C) 2019, 2020, Kevin Walls
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -176,6 +176,7 @@ public class CreateSFZ {
     protected SampleCollection sampleCollection;
     //protected String sampleDirName;
     protected int releaseLevel;
+    protected boolean overwrite;
 
     /**
      * Command-line arguments:
@@ -205,6 +206,7 @@ public class CreateSFZ {
         int rootNote = -1; // MIDI.noteNameToNumber("C3");
         int releaseLevel = 0; // passed to volume= param for release triggers, specified in db: -144 to 6
         String outputFilename = null;
+        boolean overwrite = false;
         List<String> sampleNames = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-format")) {
@@ -218,10 +220,14 @@ public class CreateSFZ {
             } else if (args[i].equals("-note")) {
                 i++;
                 rootNote = MIDI.noteNameToNumber(args[i]);
+                System.out.println("Root note: " + rootNote + " (" + args[i] + ")");
                 continue;
             } else if (args[i].equals("-o")) {
                 i++;
                 outputFilename = args[i];
+                continue;
+            } else if (args[i].equals("-F")) {
+                overwrite = true;
                 continue;
             } else if (args[i].equals("-releaseLevel")) {
                 i++;
@@ -253,6 +259,7 @@ public class CreateSFZ {
         }
         // System.out.println(COPYTEXT);
         CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote, releaseLevel);
+        createSFZ.overwrite = overwrite;
         createSFZ.writeSFZ(outputFilename);
     }
 
@@ -368,6 +375,10 @@ public class CreateSFZ {
      * @throws IOException
      */
     protected void writeSFZ(String outputFilename) throws IOException {
+
+        if (!overwrite && new File(outputFilename).exists()) {
+            throw new IOException("destination/output file exists: " + outputFilename);
+        }
         sampleCollection.writeSFZ(outputFilename, KEY_RANGE, KEY_RANGE, releaseLevel);
     }
 }
