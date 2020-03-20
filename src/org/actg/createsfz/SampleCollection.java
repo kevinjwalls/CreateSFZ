@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019 Kevin Walls
+ * Copyright (C) 2019, 2020, Kevin Walls
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -97,6 +97,7 @@ public class SampleCollection {
      * @param rootNote
      */
     public SampleCollection(Format format, List<String> sampleNames, int rootNote) {
+        this.format = format;
         samples = new HashMap<Integer, Set>();
         int note = rootNote;
         for (String s : sampleNames) {
@@ -256,6 +257,7 @@ public class SampleCollection {
         // Iterate the notes, retrieve a Set of samples for each note.
         int noteCount = 0;
         int prevKey = -1;
+        out.println("// " + notes);
         for (Integer note : notes) {
             out.println("\n// Note: " + note);
             Set<Sample> set = samples.get(note);
@@ -307,6 +309,7 @@ public class SampleCollection {
                 prevKey = s1.noteNumber;
                 noteCount++;
             }
+            out.println("// noteCount = " + noteCount);
         }
     }
 
@@ -396,12 +399,12 @@ public class SampleCollection {
         if (filename == null) {
             throw new IOException("no output file");
         }
-        File outputFile = new File(filename);
-        if (outputFile.exists()) {
-            throw new IOException("destination/output file exists: " + outputFile.getCanonicalFile());
+        if (samples == null || samples.isEmpty()) {
+            throw new IOException("no samples");
         }
+        File outputFile = new File(filename);
         System.err.println("CreateSFZ: " + outputFile);
-        PrintStream out = new PrintStream(new FileOutputStream(outputFile));
+        PrintStream out = new PrintStream(outputFile);
         out.println(HEADER);
         out.println("// Sample filename format: " + format.toString());
         out.println("//");
@@ -410,7 +413,9 @@ public class SampleCollection {
             out.println("default_path=" + sampleDirName);
         }
         printRegions(samples, rangeLow, rangeHigh, false, 0, out);
-        printRegions(samplesReleaseTriggers, rangeLow, rangeHigh, true, releaseLevel, out);
+        if (samplesReleaseTriggers != null) {
+            printRegions(samplesReleaseTriggers, rangeLow, rangeHigh, true, releaseLevel, out);
+        }
         out.println(FOOTER);
     }
 }
