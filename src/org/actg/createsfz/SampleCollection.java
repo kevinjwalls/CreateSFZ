@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019, 2020, Kevin Walls
+ * Copyright (C) 2019, 2022, Kevin Walls
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -279,6 +279,7 @@ public class SampleCollection {
             // Get the velocity range for these samples:
             int velocities = countVelocities(set);  // Redundant: samplesByVelocity.size() should equal velocities.
             List<String> velocityStrings = getVelocityRanges(velocities);
+            System.out.println("velocities: " + velocities + " : " + velocityStrings);
             List<Set<Sample>> samplesByVelocity = splitByVelocity(set);
             for (Set<Sample> setPerVelocity : samplesByVelocity) {
                 // How many samples for that note (and velocity): round-robin sequence.
@@ -287,7 +288,7 @@ public class SampleCollection {
                     if (seq == 1) {
                         String velocityInfo = "";
                         if (s.velocity >= 0) {
-                            velocityInfo = velocityStrings.get(s.velocity);
+                            velocityInfo = velocityStrings.get(Math.min(s.velocity, velocityStrings.size() - 1));
                         }
                         out.println("<group> " + velocityInfo); // e.g. lovel=55 hivel=90
                         out.println("seq_length=" + setPerVelocity.size());
