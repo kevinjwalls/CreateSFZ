@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019, 2020, Kevin Walls
+ * Copyright (C) 2019, 2022, Kevin Walls
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ package org.actg.createsfz;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,10 +38,9 @@ public class CreateSFZ {
     public static final String USAGE = "java CreateSFZ [ -filter FILENAME_FILTER]  [ -format FORMAT_NAME ] [ -o OUPTUTFILE ] [ -note NOTENAME ]  FILE or DIRECTORY \n"
             + "where:\n"
             + "[ ... ] options are optional\n"
-            + " -filter FILENAME_FILTER      Specifies text that must be in sample filenames\n"
-            + "DIRECTORY is a directory name to scan entirely for samples\n"
-            + "FILE is a single file to use\n"
-            + "FORMAT_NAME can be 'pianobook' or 'format1' (the default)";
+            + " -filter FILENAME_FILTER    Specifies text that must be in sample filenames\n"
+            + "         DIRECTORY          is a directory name to scan entirely for samples\n"
+            + "         FILE               is a single file to use";
 
     public static final String DEFAULT_FORMAT_NAME = "format1";
 
@@ -51,6 +51,8 @@ public class CreateSFZ {
     public interface Format {
 
         public String filenameRegex();
+
+        public String filenameExample();
 
         public int getBaseNameGroup();
 
@@ -73,6 +75,10 @@ public class CreateSFZ {
 
         public String filenameRegex() {
             return "(.*)_([a-zA-Z]+)\\-(.*)\\-(\\d+)\\.wav"; // "baseName_velocityName-NoteName-VariationNumber.wav"
+        }
+
+        public String filenameExample() {
+            return "baseName_velocityName-NoteName-VariationNumber.wav";
         }
 
         public int getBaseNameGroup() {
@@ -110,6 +116,10 @@ public class CreateSFZ {
             return "(.*?) (RT )?(.*)\\.wav"; // baseName notename
         }
 
+        public String filenameExample() {
+            return "baseName notename.wav";
+        }
+
         public int getBaseNameGroup() {
             return 1;
         }
@@ -145,6 +155,10 @@ public class CreateSFZ {
         public String filenameRegex() {
             return "([A-Za-z]*)?\\s+([mpf]+)?\\s*?([A-Z#0-9]*?)(\\s+RT)?\\.wav"; // "baseName velocity? NoteName RT?"
             //return "([A-Za-z]*)?\\s+([mpf]+)?\\s*?([A-Z#0-9]*?)(\\s+RT)?\\.wav"; // "baseName velocity? NoteName RT?"
+        }
+
+        public String filenameExample() {
+            return "baseName velocity? NoteName RT?";
         }
 
         public int getBaseNameGroup() {
@@ -197,9 +211,11 @@ public class CreateSFZ {
     public static void main(String[] args) throws IOException {
         // At least one argument is required:
         if (args.length < 1) {
-            System.err.println(USAGE);
+            CreateSFZ createSFZ = new CreateSFZ();
+            createSFZ.showUsage(System.out);
             System.exit(1);
         }
+        boolean shownUsage = false;
         String dirname = null;
         String filenameFilter = null;
         String formatName = null; // DEFAULT_FORMAT_NAME;
@@ -239,6 +255,10 @@ public class CreateSFZ {
                 } catch (NumberFormatException nfe) {
                     throw new RuntimeException("specify '-releaseLevel PERCENT' where PERCENT is an integer value.");
                 }
+            } else if (args[i].equals("-?") || args[i].equals("-help")) {
+                CreateSFZ createSFZ = new CreateSFZ();
+                createSFZ.showUsage(System.out);
+                shownUsage = true;
             } else {
                 File f = new File(args[i]);
                 if (!f.exists()) {
@@ -250,17 +270,36 @@ public class CreateSFZ {
                 }
             }
         }
-        // Consider checking we either set a directory name or gave a sample.
-        if (!sampleNames.isEmpty() && dirname != null) {
-            throw new RuntimeException("Specify EITHER a filename or directory name.");
+        // Don't do anything if we showed usage, unless we were given other settings as well:
+        if (!shownUsage || args.length > 1) {
+            // Consider checking we either set a directory name or gave a sample.
+            if (!sampleNames.isEmpty() && dirname != null) {
+                throw new RuntimeException("Specify EITHER a filename or directory name.");
+            }
+            if (sampleNames.isEmpty() && dirname == null) {
+                dirname = ".";
+            }
+            // System.out.println(COPYTEXT);
+            CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote, releaseLevel);
+            createSFZ.overwrite = overwrite;
+            createSFZ.writeSFZ(outputFilename);
         }
-        if (sampleNames.isEmpty() && dirname == null) {
-            dirname = ".";
+    }
+
+    public void showUsage(PrintStream out) {
+        System.err.println(USAGE);
+        for (String fn : KNOWN_FORMATS) {
+            try {
+                System.out.println("\nFilename format: " + fn);
+                Format f = formatForName(fn);
+                out.println(" matches: " + f.filenameRegex() + "  e.g. " + f.filenameExample());
+            } catch (Exception e) {
+            }
         }
-        // System.out.println(COPYTEXT);
-        CreateSFZ createSFZ = new CreateSFZ(formatName, dirname, filenameFilter, sampleNames, rootNote, releaseLevel);
-        createSFZ.overwrite = overwrite;
-        createSFZ.writeSFZ(outputFilename);
+    }
+
+    public CreateSFZ() {
+
     }
 
     /**
